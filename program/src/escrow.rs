@@ -1,18 +1,18 @@
 use anchor_lang::prelude::*;
-use anchor_spl::token::{self, Token, TokenAccount, Transfer};
+use anchor_spl::token::{Token, TokenAccount};
 use crate::state::*;
 use crate::error::BountyError;
 
 #[derive(Accounts)]
-pub struct Deposit<'info> {
-    #[account(
-        mut,
-        has_one = creator @ BountyError::NotBountyCreator
-    )]
+pub struct InitEscrow<'info> {
+    #[account(has_one = creator @ BountyError::NotBountyCreator)]
     pub bounty: Account<'info, BountyAccount>,
     
     #[account(
-        mut,
+        init,
+        payer = creator,
+        token::mint = token_mint,
+        token::authority = bounty,
         seeds = [b"escrow", bounty.key().as_ref()],
         bump
     )]
@@ -21,30 +21,14 @@ pub struct Deposit<'info> {
     #[account(mut)]
     pub creator: Signer<'info>,
     
-    #[account(mut)]
-    pub creator_token: Account<'info, TokenAccount>,
-    
+    pub token_mint: AccountInfo<'info>,
     pub token_program: Program<'info, Token>,
+    pub system_program: Program<'info, System>,
+    pub rent: Sysvar<'info, Rent>,
 }
 
-pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
-    require!(amount > 0, BountyError::InvalidAmount);
-    
-    let cpi_ctx = CpiContext::new(
-        ctx.accounts.token_program.to_account_info(),
-        Transfer {
-            from: ctx.accounts.creator_token.to_account_info(),
-            to: ctx.accounts.escrow.to_account_info(),
-            authority: ctx.accounts.creator.to_account_info(),
-        },
-    );
-    
-    token::transfer(cpi_ctx, amount)?;
-    
-    let bounty = &mut ctx.accounts.bounty;
-    bounty.amount = bounty.amount.checked_add(amount).unwrap();
-    bounty.status = BountyStatus::Funded;
-    
+pub fn init_escrow(ctx: Context<InitEscrow>) -> Result<()> {
+    // Escrow is created, ready to receive deposits
     Ok(())
 }
 

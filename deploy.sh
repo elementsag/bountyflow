@@ -5,41 +5,59 @@ echo "🦀 BountyFlow Deployment Script"
 echo "================================"
 
 # Check prerequisites
-command -v solana >/dev/null 2>&1 || { echo "❌ Solana CLI not installed. Run: sh -c \"\$(curl -sSfL https://release.anza.xyz/stable/install)\""; exit 1; }
-command -v anchor >/dev/null 2>&1 || { echo "❌ Anchor not installed. Run: cargo install --git https://github.com/coral-xyz/anchor avm --locked --force"; exit 1; }
+if ! command -v solana &> /dev/null; then
+    echo "❌ Solana CLI not installed"
+    echo "Run: sh -c \"\$(curl -sSfL https://release.anza.xyz/stable/install)\""
+    exit 1
+fi
+
+if ! command -v anchor &> /dev/null; then
+    echo "❌ Anchor not installed"
+    echo "Run: cargo install --git https://github.com/coral-xyz/anchor avm --locked --force && avm install 0.29.0"
+    exit 1
+fi
 
 # Configure for devnet
 echo "🌐 Configuring Solana for devnet..."
 solana config set --url devnet
 
-# Check balance
-BALANCE=$(solana balance | awk '{print $1}')
-echo "💰 Current balance: $BALANCE SOL"
+# Check balance (handle errors gracefully)
+echo "💰 Checking balance..."
+BALANCE=$(solana balance 2>/dev/null | awk '{print $1}' || echo "0")
+echo "   Current balance: $BALANCE SOL"
 
-if [ $(echo "$BALANCE < 1" | bc -l) ]; then
-    echo "💸 Airdropping 2 SOL..."
-    solana airdrop 2
+# Try airdrop if balance is low (skip if network error)
+if [ "$BALANCE" = "0" ] || [ "$BALANCE" = "" ]; then
+    echo "💸 Attempting airdrop..."
+    solana airdrop 2 2>/dev/null || echo "⚠️  Airdrop failed (network issue or rate limited)"
 fi
+
+# Navigate to program directory
+cd program 2>/dev/null || { echo "❌ program/ directory not found"; exit 1; }
 
 # Build program
 echo "🔨 Building Anchor program..."
-cd program
-anchor build
-cd ..
+anchor build 2>&1 || { echo "❌ Build failed"; exit 1; }
 
 # Get program ID
-PROGRAM_ID=$(anchor keys list 2>/dev/null | grep bountyflow | awk '{print $2}' || echo "Bount11111111111111111111111111111111111111")
+PROGRAM_ID=$(anchor keys list 2>/dev/null | grep bountyflow | awk '{print $2}' || echo "")
+if [ -z "$PROGRAM_ID" ]; then
+    echo "⚠️  Could not get program ID from anchor keys list"
+    echo "   Using default placeholder..."
+    PROGRAM_ID="Bount11111111111111111111111111111111111111"
+fi
 echo "📝 Program ID: $PROGRAM_ID"
 
-# Update program ID in files
-echo "📝 Updating program ID in source files..."
-sed -i "s/declare_id!.*/declare_id!(\"$PROGRAM_ID\");/" program/src/lib.rs 2>/dev/null || true
-sed -i "s/bountyflow = .*/bountyflow = \"$PROGRAM_ID\"/" program/Anchor.toml 2>/dev/null || true
+# Update program ID in files (if sed supports -i)
+if command -v sed &> /dev/null; then
+    echo "📝 Updating program ID in source files..."
+    sed -i "s/declare_id!.*/declare_id!(\"$PROGRAM_ID\");/" src/lib.rs 2>/dev/null || true
+fi
 
 # Deploy
 echo "🚀 Deploying to devnet..."
-cd program
-anchor deploy --provider.cluster devnet
+anchor deploy --provider.cluster devnet 2>&1
+
 cd ..
 
 echo ""
@@ -50,6 +68,4 @@ echo "Explorer: https://explorer.solana.com/address/$PROGRAM_ID?cluster=devnet"
 echo ""
 echo "Next steps:"
 echo "1. Update PROGRAM_ID in bot/.env"
-echo "2. Update NEXT_PUBLIC_PROGRAM_ID in web/.env.local"
-echo "3. Deploy bot: cd bot && npm install && npm start"
-echo "4. Deploy web: cd web && npm install && npx vercel --prod"
+echo "2. cd bot && npm install && npm start"

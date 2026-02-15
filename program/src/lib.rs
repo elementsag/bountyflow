@@ -31,8 +31,12 @@ pub mod bountyflow {
         bounty::create_bounty(ctx, repo_id, issue_number, amount, token_mint)
     }
 
+    pub fn init_escrow(ctx: Context<InitEscrow>) -> Result<()> {
+        escrow::init_escrow(ctx)
+    }
+
     pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
-        escrow::deposit(ctx, amount)
+        bounty::deposit(ctx, amount)
     }
 
     pub fn claim_bounty(
@@ -67,5 +71,9 @@ pub mod bountyflow {
 
     pub fn refund_timeout(ctx: Context<RefundTimeout>) -> Result<()> {
         bounty::refund_timeout(ctx)
+    }
+
+    pub fn initialize_treasury(ctx: Context<InitializeTreasury>, fee_bps: u64) -> Result<()> {
+        escrow::initialize_treasury(ctx, fee_bps)
     }
 }

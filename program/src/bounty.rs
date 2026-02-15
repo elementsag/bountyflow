@@ -4,7 +4,7 @@ use crate::state::*;
 use crate::error::BountyError;
 
 #[derive(Accounts)]
-#[instruction(repo_id: u64, issue_number: u64, amount: u64, token_mint: Pubkey)]
+#[instruction(repo_id: u64, issue_number: u64)]
 pub struct CreateBounty<'info> {
     #[account(
         init,
@@ -15,23 +15,10 @@ pub struct CreateBounty<'info> {
     )]
     pub bounty: Account<'info, BountyAccount>,
     
-    #[account(
-        init_if_needed,
-        payer = creator,
-        token::mint = token_mint,
-        token::authority = bounty,
-        seeds = [b"escrow", bounty.key().as_ref()],
-        bump
-    )]
-    pub escrow: Account<'info, TokenAccount>,
-    
     #[account(mut)]
     pub creator: Signer<'info>,
     
-    pub token_mint: AccountInfo<'info>,
-    pub token_program: Program<'info, Token>,
     pub system_program: Program<'info, System>,
-    pub rent: Sysvar<'info, Rent>,
 }
 
 pub fn create_bounty(
@@ -49,11 +36,61 @@ pub fn create_bounty(
     bounty.repo_id = repo_id;
     bounty.issue_number = issue_number;
     bounty.creator = ctx.accounts.creator.key();
-    bounty.amount = amount;
+    bounty.amount = 0; // Starts at 0, funded via deposit
     bounty.token_mint = token_mint;
     bounty.status = BountyStatus::Open;
     bounty.created_at = clock.unix_timestamp;
     bounty.bump = *ctx.bumps.get("bounty").unwrap();
+    
+    Ok(())
+}
+
+#[derive(Accounts)]
+pub struct Deposit<'info> {
+    #[account(
+        mut,
+        has_one = creator @ BountyError::NotBountyCreator,
+        has_one = token_mint
+    )]
+    pub bounty: Account<'info, BountyAccount>,
+    
+    #[account(
+        mut,
+        seeds = [b"escrow", bounty.key().as_ref()],
+        bump,
+        token::mint = token_mint,
+        token::authority = bounty
+    )]
+    pub escrow: Account<'info, TokenAccount>,
+    
+    #[account(mut)]
+    pub creator: Signer<'info>,
+    
+    #[account(mut)]
+    pub creator_token: Account<'info, TokenAccount>,
+    
+    pub token_mint: AccountInfo<'info>,
+    pub token_program: Program<'info, Token>,
+}
+
+pub fn deposit(ctx: Context<Deposit>, amount: u64) -> Result<()> {
+    require!(amount > 0, BountyError::InvalidAmount);
+    
+    anchor_spl::token::transfer(
+        CpiContext::new(
+            ctx.accounts.token_program.to_account_info(),
+            anchor_spl::token::Transfer {
+                from: ctx.accounts.creator_token.to_account_info(),
+                to: ctx.accounts.escrow.to_account_info(),
+                authority: ctx.accounts.creator.to_account_info(),
+            },
+        ),
+        amount,
+    )?;
+    
+    let bounty = &mut ctx.accounts.bounty;
+    bounty.amount = bounty.amount.checked_add(amount).unwrap();
+    bounty.status = BountyStatus::Funded;
     
     Ok(())
 }
@@ -78,7 +115,7 @@ pub struct CancelBounty<'info> {
     pub creator: Signer<'info>,
     
     #[account(mut)]
-    pub creator_token_account: Account<'info, TokenAccount>,
+    pub creator_token: Account<'info, TokenAccount>,
     
     pub token_program: Program<'info, Token>,
 }
@@ -94,19 +131,19 @@ pub fn cancel_bounty(ctx: Context<CancelBounty>) -> Result<()> {
             bounty.issue_number.to_le_bytes().as_ref(),
             &[bounty.bump],
         ];
-        let signer = &[&seeds[..]];
         
-        let cpi_ctx = CpiContext::new_with_signer(
-            ctx.accounts.token_program.to_account_info(),
-            anchor_spl::token::Transfer {
-                from: ctx.accounts.escrow.to_account_info(),
-                to: ctx.accounts.creator_token_account.to_account_info(),
-                authority: ctx.accounts.bounty.to_account_info(),
-            },
-            signer,
-        );
-        
-        anchor_spl::token::transfer(cpi_ctx, bounty.amount)?;
+        anchor_spl::token::transfer(
+            CpiContext::new_with_signer(
+                ctx.accounts.token_program.to_account_info(),
+                anchor_spl::token::Transfer {
+                    from: ctx.accounts.escrow.to_account_info(),
+                    to: ctx.accounts.creator_token.to_account_info(),
+                    authority: ctx.accounts.bounty.to_account_info(),
+                },
+                &[&seeds[..]],
+            ),
+            bounty.amount,
+        )?;
     }
     
     Ok(())
