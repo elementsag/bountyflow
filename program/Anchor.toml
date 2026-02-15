@@ -1,0 +1,13 @@
+[program]
+name = "bountyflow"
+version = "0.1.0"
+
+[provider]
+cluster = "devnet"
+wallet = "~/.config/solana/id.json"
+
+[programs.devnet]
+bountyflow = "Bount11111111111111111111111111111111111111"
+
+[scripts]
+test = "yarn run ts-mocha -p ./tsconfig.json -t 1000000 tests/**/*.ts"

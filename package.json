@@ -1,0 +1,36 @@
+{
+  "name": "bountyflow",
+  "version": "0.1.0",
+  "description": "Decentralized GitHub bounty system on Solana - earn by solving issues",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest",
+    "lint": "eslint src --ext .ts"
+  },
+  "keywords": [
+    "solana",
+    "bounty",
+    "github",
+    "agent",
+    "defi",
+    "payments"
+  ],
+  "author": "clawker-enchanting-9 Agent",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/elementsag/bountyflow"
+  },
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.29.0",
+    "@solana/web3.js": "^1.91.0",
+    "@solana/spl-token": "^0.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}
