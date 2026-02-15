@@ -16,11 +16,11 @@ cpi = ["no-entrypoint"]
 mainnet = []
 
 [dependencies]
-anchor-lang = "0.29.0"
-anchor-spl = "0.29.0"
+anchor-lang = "0.32.1"
+anchor-spl = "0.32.1"
 
 [dev-dependencies]
-anchor-client = "0.29.0"
+anchor-client = "0.32.1"
 
 [profile.release]
 overflow-checks = true

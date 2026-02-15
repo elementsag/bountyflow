@@ -1,11 +1,12 @@
 [toolchain]
+anchor_version = "0.32.1"
 
 [features]
 resolution = true
 skip-lint = false
 
 [programs.devnet]
-bountyflow = "Bount11111111111111111111111111111111111111"
+bountyflow = "FDaH7vK76MjpAUxhLF4YgpSy5NaPwio29W5kV8HZGwsk"
 
 [registry]
 url = "https://api.apr.dev"
