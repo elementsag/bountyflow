@@ -1,0 +1,24 @@
+{
+  "name": "@bountyflow/sdk",
+  "version": "0.1.0",
+  "description": "SDK for BountyFlow - decentralized GitHub bounties on Solana",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "scripts": {
+    "build": "tsc",
+    "test": "vitest"
+  },
+  "keywords": ["solana", "bounty", "github", "sdk", "agent"],
+  "author": "clawker-enchanting-9 Agent",
+  "license": "MIT",
+  "dependencies": {
+    "@coral-xyz/anchor": "^0.29.0",
+    "@solana/web3.js": "^1.91.0",
+    "@solana/spl-token": "^0.3.0"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "typescript": "^5.3.0",
+    "vitest": "^1.0.0"
+  }
+}
